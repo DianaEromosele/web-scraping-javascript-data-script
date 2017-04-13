@@ -34,8 +34,6 @@ function handleFileSelect(event) {
   getNameFromDocDeltaData(file);
 };
 
-// NPI, Firstname, Lastname, Gender, Specialty, 
-
 function getNameFromDocDeltaData(file) {
   let reader = new FileReader();
   reader.readAsText(file);
@@ -122,36 +120,28 @@ function getNameFromDocDeltaData(file) {
 };
 
 function searchDocInfoData(firstName, lastName, state, docDeltaDoctor) {
-  console.log("State: ", state)
-
+  // console.log("State: ", state)
  let root = 'http://www.docinfo.org/Home/Search?doctorname=' + firstName + '%20' + lastName
-
   if (state) {
-
     root = root + '&usstate=';
-
     for (let index = 0; index < state.split(" ").length; index++) {
       if (state.split(" ")[index + 1]) {
         root = root + state.split(" ")[index] + '%20'
       } else {
-        root = root + state.split(" ")[index] + '&from=0'
+        root = root + state.split(" ")[index] + '&max=30&from=0'
       }
     };
   } else {
-    root = root + '&from=0';
+    root = root + '&max=30&from=0';
   };
-
-  
-
-  // let root = state.split(" ").length == 2 ? 'http://www.docinfo.org/Home/Search?doctorname=' + firstName + '%20' + lastName + '&usstate=' + state.split(" ")[0] + '%20' + state.split(" ")[1] + '&from=0' : 'http://www.docinfo.org/Home/Search?doctorname=' + firstName + '%20' + lastName + '&usstate=' + state + '&from=0' 
 
   $.ajax({
     url: root,
     type: "POST"    
   }).then(function(docInfoSearchResults) {
-    // console.log("DocInfo Search Results: ", docInfoSearchResults);
+    console.log("DocInfo Search Results: ", docInfoSearchResults);
       let docInfoSearchResultsObject = JSON.parse(docInfoSearchResults);
-    console.log("Doctor Objects: ", docInfoSearchResultsObject );
+    // console.log("Doctor Objects: ", docInfoSearchResultsObject );
       return docInfoSearchResultsObject;
   }).then(function(docInfoSearchResultsObject) {
     // console.log("hello")
@@ -159,28 +149,27 @@ function searchDocInfoData(firstName, lastName, state, docDeltaDoctor) {
     for (let index = 0; index < docInfoSearchResultsObject["hits"]["hits"].length; index++) {
       let singleDoctorInResults = docInfoSearchResultsObject["hits"]["hits"][index]["_source"]["message"];
       // debugger;
-      console.log("Specific Doctor in Results: ", singleDoctorInResults);
+      // console.log("Specific Doctor in Results: ", singleDoctorInResults);
 
       eachDoctorInResults.push(singleDoctorInResults);
     }
     return Promise.all(eachDoctorInResults);
   }).then(function(eachDoctorInResults){
-    eachDoctorInResults.forEach(function(doctor, index){
-      let doctorXML = $.parseXML(doctor);
-      let $doctorXML = $(doctorXML);
+    eachDoctorInResults.forEach(function(doctorInfoDoctor, index){
+      let doctorInfoDoctorXML = $.parseXML(doctorInfoDoctor);
+      let $doctorInfoDoctorXML = $(doctorInfoDoctorXML);
+
+      console.log($doctorInfoDoctorXML);
       console.log("--------------------------------------------")
-      console.log("First Name: ", $doctorXML.find("FirstName").text());
-      console.log("Last Name: ", $doctorXML.find("LastName").text());
-      console.log("Full Name: ", $doctorXML.find("FullName").text());
+      // console.log("First Name: ", $doctorInfoDoctorXML.find("FirstName").text());
+      // console.log("Last Name: ", $doctorInfoDoctorXML.find("LastName").text());
+      console.log("Full Name: ", $doctorInfoDoctorXML.find("FullName").text());
     });
 
   });
 };
         
       
-
-
-
 
 
 //                 // console.log("DegreeCode: ", $alifHTML.find("DegreeCode").text());
