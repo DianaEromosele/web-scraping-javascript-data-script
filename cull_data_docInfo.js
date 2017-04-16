@@ -31,10 +31,11 @@ function isAPIAvailable() {
 function handleFileSelect(event) {
   let files = event.target.files; // array of files
   let file = files[0] // select a single file
-  getNameFromDocDeltaData(file);
+  getDocInfoFromDocDeltaExcelSheet(file);
 };
 
-function getNameFromDocDeltaData(file) {
+
+function getDocInfoFromDocDeltaExcelSheet(file) {
   let reader = new FileReader();
   reader.readAsText(file);
 
@@ -42,13 +43,18 @@ function getNameFromDocDeltaData(file) {
     let csv = event.target.result;
     let docDelta_data = $.csv.toObjects(csv);
 
-    // console.log(docDelta_data[0])
-
     docDelta_data.forEach(function(docDeltaDoctor){
       let firstName = docDeltaDoctor["Firstname"];
       let lastName = docDeltaDoctor["Lastname"];
+      let state = getFullStateName(docDeltaDoctor["State"]);
 
-      let states = 
+      return configureRootPath(firstName, lastName, state, docDeltaDoctor);
+    });
+  };
+};
+
+function getFullStateName(state) {
+  let states = 
         {
           "AL": "Alabama",
           "AK": "Alaska",
@@ -111,16 +117,10 @@ function getNameFromDocDeltaData(file) {
           "WY": "Wyoming",
           "NULL": undefined
     }
-   
-      let state = states[docDeltaDoctor["State"]];
+  return states[state]
+}
 
-      return searchDocInfoData(firstName, lastName, state, docDeltaDoctor);
-    });
-  };
-};
-
-function searchDocInfoData(firstName, lastName, state, docDeltaDoctor) {
-  // console.log("State: ", state)
+function configureRootPath(firstName, lastName, state, docDeltaDoctor) {
  let root = 'http://www.docinfo.org/Home/Search?doctorname=' + firstName + '%20' + lastName
   if (state) {
     root = root + '&usstate=';
@@ -135,40 +135,54 @@ function searchDocInfoData(firstName, lastName, state, docDeltaDoctor) {
     root = root + '&max=30&from=0';
   };
 
+  return makeXMLHttpRequest(root, docDeltaDoctor)
+}
+
+function makeXMLHttpRequest(root, docDeltaDoctor) {
   $.ajax({
     url: root,
     type: "POST"    
   }).then(function(docInfoSearchResults) {
-    console.log("DocInfo Search Results: ", docInfoSearchResults);
-      let docInfoSearchResultsObject = JSON.parse(docInfoSearchResults);
-    // console.log("Doctor Objects: ", docInfoSearchResultsObject );
-      return docInfoSearchResultsObject;
-  }).then(function(docInfoSearchResultsObject) {
-    // console.log("hello")
-    let eachDoctorInResults = [];
-    for (let index = 0; index < docInfoSearchResultsObject["hits"]["hits"].length; index++) {
-      let singleDoctorInResults = docInfoSearchResultsObject["hits"]["hits"][index]["_source"]["message"];
-      // debugger;
-      // console.log("Specific Doctor in Results: ", singleDoctorInResults);
+    return turnDocInfoResultsIntoObject(docInfoSearchResults, docDeltaDoctor);
+  });
+}
 
-      eachDoctorInResults.push(singleDoctorInResults);
-    }
-    return Promise.all(eachDoctorInResults);
-  }).then(function(eachDoctorInResults){
-    eachDoctorInResults.forEach(function(doctorInfoDoctor, index){
-      let doctorInfoDoctorXML = $.parseXML(doctorInfoDoctor);
-      let $doctorInfoDoctorXML = $(doctorInfoDoctorXML);
+function turnDocInfoResultsIntoObject(docInfoSearchResults, docDeltaDoctor) {
+  let docInfoSearchResultsObject = JSON.parse(docInfoSearchResults);
+  return parseEachDoctorinResults(docInfoSearchResultsObject, docDeltaDoctor)
+}
 
-      console.log($doctorInfoDoctorXML);
-      console.log("--------------------------------------------")
-      // console.log("First Name: ", $doctorInfoDoctorXML.find("FirstName").text());
-      // console.log("Last Name: ", $doctorInfoDoctorXML.find("LastName").text());
-      console.log("Full Name: ", $doctorInfoDoctorXML.find("FullName").text());
-    });
+function parseEachDoctorinResults(docInfoSearchResultsObject, docDeltaDoctor) {
+  let eachDoctorInResultsAsXML = [];
+  for (let index = 0; index < docInfoSearchResultsObject["hits"]["hits"].length; index++) {
+    let singleDoctorInResults = docInfoSearchResultsObject["hits"]["hits"][index]["_source"]["message"];
+    eachDoctorInResultsAsXML.push(singleDoctorInResults);
+  }
+  return parseXMLDocData(eachDoctorInResultsAsXML, docDeltaDoctor);
+}
 
+function parseXMLDocData(eachDoctorInResultsAsXML, docDeltaDoctor) {
+  console.log("DocDelta Doctor: ", docDeltaDoctor);
+  eachDoctorInResultsAsXML.forEach(function(doctorInfoDoctor, index){
+    let doctorInfoDoctorXML = $.parseXML(doctorInfoDoctor);
+    let $doctorInfoDoctorXML = $(doctorInfoDoctorXML);
+    console.log("--------------------------------------------");
+    console.log("Full Name: ", $doctorInfoDoctorXML.find("FullName").text());
   });
 };
-        
+     
+
+
+
+
+
+
+
+
+
+
+
+   
       
 
 
