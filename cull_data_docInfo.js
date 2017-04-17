@@ -48,7 +48,7 @@ function getDocInfoFromDocDeltaExcelSheet(file) {
       let lastName = docDeltaDoctor["Lastname"];
       let state = getFullStateName(docDeltaDoctor["State"]);
 
-      return configureRootPath(firstName, lastName, state, docDeltaDoctor);
+      return configureRootPath(firstName, lastName, state, docDeltaDoctor, docDelta_data);
     });
   };
 };
@@ -120,7 +120,7 @@ function getFullStateName(state) {
   return states[state]
 }
 
-function configureRootPath(firstName, lastName, state, docDeltaDoctor) {
+function configureRootPath(firstName, lastName, state, docDeltaDoctor, docDelta_data) {
  let root = 'http://www.docinfo.org/Home/Search?doctorname=' + firstName + '%20' + lastName
   if (state) {
     root = root + '&usstate=';
@@ -135,69 +135,120 @@ function configureRootPath(firstName, lastName, state, docDeltaDoctor) {
     root = root + '&max=30&from=0';
   };
 
-  return makeXMLHttpRequest(root, docDeltaDoctor)
+  return makeXMLHttpRequest(root, docDeltaDoctor, docDelta_data)
 }
 
-function makeXMLHttpRequest(root, docDeltaDoctor) {
+function makeXMLHttpRequest(root, docDeltaDoctor, docDelta_data) {
   $.ajax({
     url: root,
     type: "POST"    
   }).then(function(docInfoSearchResults) {
-    return turnDocInfoResultsIntoObject(docInfoSearchResults, docDeltaDoctor);
+    return turnDocInfoResultsIntoObject(docInfoSearchResults, docDeltaDoctor, docDelta_data);
   });
 }
 
-function turnDocInfoResultsIntoObject(docInfoSearchResults, docDeltaDoctor) {
+function turnDocInfoResultsIntoObject(docInfoSearchResults, docDeltaDoctor, docDelta_data) {
   let docInfoSearchResultsObject = JSON.parse(docInfoSearchResults);
-  return parseEachDoctorinResults(docInfoSearchResultsObject, docDeltaDoctor)
+  return parseEachDoctorinResults(docInfoSearchResultsObject, docDeltaDoctor, docDelta_data)
 }
 
-function parseEachDoctorinResults(docInfoSearchResultsObject, docDeltaDoctor) {
-  let eachDoctorInResultsAsXML = [];
+function parseEachDoctorinResults(docInfoSearchResultsObject, docDeltaDoctor, docDelta_data) {
+  let doctorsDocInfoOrgResults = [];
   for (let index = 0; index < docInfoSearchResultsObject["hits"]["hits"].length; index++) {
     let singleDoctorInResults = docInfoSearchResultsObject["hits"]["hits"][index]["_source"]["message"];
-    eachDoctorInResultsAsXML.push(singleDoctorInResults);
+    doctorsDocInfoOrgResults.push(singleDoctorInResults);
   }
-  return parseXMLDocData(eachDoctorInResultsAsXML, docDeltaDoctor);
+  return parseXMLDocData(doctorsDocInfoOrgResults, docDeltaDoctor, docDelta_data);
 }
 
-function parseXMLDocData(eachDoctorInResultsAsXML, docDeltaDoctor) {
+function parseXMLDocData(doctorsDocInfoOrgResults, docDeltaDoctor, docDelta_data) {
+  // console.log("DocDelta Spreadsheet Data: ", docDelta_data)
   console.log("DocDelta Doctor: ", docDeltaDoctor);
-  eachDoctorInResultsAsXML.forEach(function(doctorInfoDoctor, index){
-    let doctorInfoDoctorXML = $.parseXML(doctorInfoDoctor);
-    let $doctorInfoDoctorXML = $(doctorInfoDoctorXML);
-    console.log("--------------------------------------------");
-    console.log("Full Name: ", $doctorInfoDoctorXML.find("FullName").text());
+ 
+  doctorsDocInfoOrgResults.forEach(function(docInfoOrgDoctor, index){
+    let docInfoOrgDoctorDocument = $.parseXML(docInfoOrgDoctor);
+ 
+    let firstNameCheck = $(docInfoOrgDoctorDocument).find("FirstName").text().toLowerCase() == docDeltaDoctor["Firstname"].toLowerCase();
+
+    let lastNameCheck = $(docInfoOrgDoctorDocument).find("LastName").text().toLowerCase() == docDeltaDoctor["Lastname"].toLowerCase();
+
+    let genderCheck = $(docInfoOrgDoctorDocument).find("Gender").text().toLowerCase() == docDeltaDoctor["Gender"].toLowerCase();
+
+    let specialtyCheck = $(docInfoOrgDoctorDocument).find("Certifications Certification BoardName").text().toLowerCase().includes(docDeltaDoctor["Specialty"].toLowerCase());
+
+    let stateCheck = $(docInfoOrgDoctorDocument).find("Licensures Licensure State").text().toLowerCase().includes(docDeltaDoctor["State"].toLowerCase()); 
+
+  console.log("--------------------------------------------");
+ 
+
+  console.log("DocInfoOrg Full Name: ", $(docInfoOrgDoctorDocument).find("FullName").text());
+  // console.log("Document: ", docInfoOrgDoctorDocument)
+
+
+  // jQuery collection. not exactly an array. you can call jQuery methods on it. 
+  let activeLicenses = $(docInfoOrgDoctorDocument).find("Licensures Licensure State");
+
+  // $.each(activeLicenses)
+  activeLicenses.each(function(index, state) {
+    console.log($(state).text());
   });
+
+    console.log("Certifications: ", $docInfoOrgDoctorXML.find("Certifications Certification BoardName").text())
+  });
+
+
+// doc Info: 
+
+// firstName: FirstName
+// lastName: LastName
+// gender: Gender
+// Medical School: MedicalSchoolName
+// Graduation Year: GraduationYear
+// Reported City: Locations Location City
+// Reported State: Locations Location State
+// Active Licenses (should be an array): Licensures Licensure State 
+// Specialty: Certifications Certification BoardName
+// Actions taken Against Them: BoardActions BoardAction State 
+// Actions taken Against Them URL: BoardActions BoardAction StateURL
+
+
+
+
+
+// doc Delta:
+
+
+// Firstname: "ELIZABETH"
+// Gender: "F"
+// Lastname: "PONTIUS"
+// NPI: "1285801092"
+// Specialty: "Emergency Medicine"
+// State: "DC"
+
+// firstName
+// lastName
+// gender
+// state
+// specialty
+
+
+
+
+
+
+
 };
      
 
 
 
 
-
-
+  
 
 
 
 
 
    
-      
-
-
-//                 // console.log("DegreeCode: ", $alifHTML.find("DegreeCode").text());
-//                 // console.log("Gender: ", $alifHTML.find("Gender").text());
-//                 // console.log("Graduation Year: ", $alifHTML.find("GraduationYear").text());
-//                 // console.log("Medical School: ", $alifHTML.find("MedicalSchoolName").text());
-//                 // console.log("Reported City: ", $alifHTML.find("Locations Location City").text());
-//                 // console.log("Reported State: ", $alifHTML.find("Licensures Licensure State").text());
-//                 // console.log("Reported Location: ", $alifHTML.find("Locations Location City").text(), $alifHTML.find("Locations Location State").text());
-//                 // console.log("Licensed In: ", $alifHTML.find("Licensures Licensure State").text());
-//                 // console.log("BoardActions: ", $alifHTML.find("BoardActions").text());
-//                 // console.log("BoardAction: ", $alifHTML.find("BoardAction").text());
- 
-// };
-
 
 
