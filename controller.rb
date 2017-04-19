@@ -1,7 +1,11 @@
 require 'uri'
 require 'net/http'
 require 'json'
+require 'nokogiri'
+require 'pry'
+require 'csv'
 require_relative 'doc_delta_doctor'
+require_relative 'doc_info_org_doctor'
 
 class Controller
 
@@ -9,14 +13,13 @@ class Controller
 
 	def initialize
 		@doc_delta_doctors = doc_delta_doctors || []
-
 		self.create_doc_delta_instances
 	end
 
 	def create_doc_delta_instances
 
 		# CSV.open()
-		CSV.foreach('docDelta_mock_sheet.csv', headers:true, header_converters: :symbol, encoding:'iso-8859-1:utf-8') do |row|
+		CSV.foreach('doc_delta_spreadsheet.csv', headers:true, header_converters: :symbol, encoding:'iso-8859-1:utf-8') do |row|
 
 			npi = row[0]
 			first_name = row[1]
@@ -25,8 +28,8 @@ class Controller
 			specialty = row[4]
 			medical_school = row[6]
 			graduation_year = row[7]
-			active_licenses = row[8]
-			punitive_actions = row[9]
+			active_licenses_in_these_states = row[8]
+			punitive_board_actions_in_these_states = row[9]
 
 			states =  {
 		 	'AL' => 'Alabama',
@@ -38,7 +41,7 @@ class Controller
 		    'CO' => 'Colorado',
 		    'CT' => 'Connecticut',
 		    'DE' => 'Delaware',
-		    'DC' => 'District of Columbia',
+		    'DC' => 'District Of Columbia',
 		    'FM' => 'Federated States Of Micronesia',
 		    'FL' => 'Florida',
 		    'GA' => 'Georgia',
@@ -91,7 +94,7 @@ class Controller
 
 		state = states[row[5]]
 		
-		@doc_delta_doctors << DocDeltaDoctor.new(npi, first_name, last_name, gender, specialty, state, medical_school, graduation_year, active_licenses, punitive_actions)
+		@doc_delta_doctors << DocDeltaDoctor.new({npi: npi, first_name: first_name, last_name: last_name, gender: gender, specialty: specialty, state: state, medical_school: medical_school, graduation_year: graduation_year, active_licenses_in_these_states: active_licenses_in_these_states, punitive_board_actions_in_these_states: punitive_board_actions_in_these_states})
 		end
 
 		self.configure_root_path
@@ -108,11 +111,11 @@ class Controller
 					if doc_delta_doctor.state.split(" ")[index + 1]
 						root = root + word + '%20'
 					else 
-						root = root + word + '&max=30&from=0'
+						root = root + word + '&from=0'
 					end
 				end
 			else
-				root = root + '&max=30&from=0'
+				root = root + '&from=0'
 			end 
 
 			self.make_request_to_docInfoOrg_server(root, doc_delta_doctor)
@@ -128,25 +131,60 @@ class Controller
 			request = Net::HTTP::Post.new(uri.request_uri)
 
 			docInfoOrg_search_results = https.request(request).body
-
+			docInfoOrg_search_results =  docInfoOrg_search_results.gsub(/null/, 'nil')
 			# turn to Hash
 			docInfoOrg_search_results = eval(docInfoOrg_search_results)
-
-
-			self.parse_docInfoOrg_Results(docInfoOrg_search_results, doc_delta_doctor )
+			self.parse_docInfoOrg_Results_into_XMLDoc(docInfoOrg_search_results, doc_delta_doctor )
 	end
 
-	def parse_docInfoOrg_Results(docInfoOrg_search_results, doc_delta_doctor)
+	def parse_docInfoOrg_Results_into_XMLDoc(docInfoOrg_search_results, doc_delta_doctor)
 
-		docInfoOrg_doctors  = [];
-
-		docInfoOrg_search_results[:hits][:hits].each_with_index do |docInfoOrg_doctor, index|
-			puts docInfoOrg_doctor[:_source][:message]
-			docInfoOrg_doctors << docInfoOrg_doctor[:_source][:message]
+		docInfoOrg_doctors_XML = docInfoOrg_search_results[:hits][:hits].each_with_object([]) do |docInfoOrg_doctor, array|
+			array << Nokogiri::XML(docInfoOrg_doctor[:_source][:message])
 		end
 
+		self.parse_docInfo_doctor_attributes(docInfoOrg_doctors_XML, doc_delta_doctor)
 	end
 
+	def parse_docInfo_doctor_attributes(docInfoOrg_doctors_XML, doc_delta_doctor)
+		# puts "Doc Delta Doctor: " + doc_delta_doctor.first_name + " " + doc_delta_doctor.last_name
+
+		docInfoOrg_doctors_XML.each do |doctor|
+			first_name = doctor.css("FirstName").text
+			last_name = doctor.css("LastName").text
+			full_name = doctor.css("FullName").text
+			gender = doctor.css("Gender").text
+			specialties = doctor.css("Certifications Certification BoardName").each_with_object([]) do |node, array|
+				array << node.text.delete("*")
+			end
+			reported_states = doctor.css("Locations Location State").each_with_object([]) do |node, array|
+				array << node.text
+			end
+			medical_school = doctor.css("MedicalSchoolName").text
+			graduation_year = doctor.css("GraduationYear").text
+			active_licenses_in_these_states = doctor.css("Licensures Licensure State").each_with_object([]) do |node, array|
+				array << node.text
+			end
+			punitive_board_actions_in_these_states = doctor.css("BoardActions BoardAction State").each_with_object([]) do |node, array|
+				doctor.css("BoardActions BoardAction StateURL").each do |url|
+					array <<  '<a href="' + url + '">' + node.text + '</a>'
+				end
+			end
+
+			docInfoOrg_doctor = DocInfoOrgDoctor.new({first_name: first_name, last_name: last_name, full_name: full_name, gender: gender, specialties: specialties, reported_states: reported_states, medical_school: medical_school, graduation_year: graduation_year, active_licenses_in_these_states: active_licenses_in_these_states, punitive_board_actions_in_these_states: punitive_board_actions_in_these_states})
+
+			self.compare_docInfoDoc_to_docDeltaDoc(doc_delta_doctor, docInfoOrg_doctor, )
+		end	
+
+	end
+
+	def compare_docInfoDoc_to_docDeltaDoc(doc_delta_doctor, docInfoOrg_doctor)
+		first_name_check = doc_delta_doctor.first_name.downcase == docInfoOrg_doctor.first_name.downcase
+		last_name_check = doc_delta_doctor.last_name.downcase == docInfoOrg_doctor.first_name.downcase
+
+
+
+	end
 
 
 
