@@ -1,6 +1,5 @@
 require 'uri'
 require 'net/http'
-require 'json'
 require 'nokogiri'
 require 'pry'
 require 'csv'
@@ -25,7 +24,8 @@ class Controller
 			first_name = row[1]
 			last_name = row[2]
 			gender = row[3]
-			specialty = row[4]
+			specialties = []
+			specialties << row[4]
 			medical_school = row[6]
 			graduation_year = row[7]
 			active_licenses_in_these_states = row[8]
@@ -94,20 +94,18 @@ class Controller
 
 		state = states[row[5]]
 		
-		@doc_delta_doctors << DocDeltaDoctor.new({npi: npi, first_name: first_name, last_name: last_name, gender: gender, specialty: specialty, state: state, medical_school: medical_school, graduation_year: graduation_year, active_licenses_in_these_states: active_licenses_in_these_states, punitive_board_actions_in_these_states: punitive_board_actions_in_these_states})
+		@doc_delta_doctors << DocDeltaDoctor.new({npi: npi, first_name: first_name, last_name: last_name, gender: gender, specialties: specialties, state: state, medical_school: medical_school, graduation_year: graduation_year, active_licenses_in_these_states: active_licenses_in_these_states, punitive_board_actions_in_these_states: punitive_board_actions_in_these_states})
 		end
 
 		self.configure_root_path
 	end
 
 	def configure_root_path
-
 		@doc_delta_doctors.each do |doc_delta_doctor|
 			root = 'http://www.docinfo.org/Home/Search?doctorname=' + doc_delta_doctor.first_name + '%20' + doc_delta_doctor.last_name
-		
 			if doc_delta_doctor.state 
 				root = root + '&usstate='
-				doc_delta_doctor.state.split(" ").each_with_index do |word, index| 
+				doc_delta_doctor.state.split(" ").each_with_index do |word, index|
 					if doc_delta_doctor.state.split(" ")[index + 1]
 						root = root + word + '%20'
 					else 
@@ -117,19 +115,15 @@ class Controller
 			else
 				root = root + '&from=0'
 			end 
-
 			self.make_request_to_docInfoOrg_server(root, doc_delta_doctor)
-
 		end
 	end 
 
 
 	def make_request_to_docInfoOrg_server(root, doc_delta_doctor)
-
 			uri = URI(root)
 			https = Net::HTTP.new(uri.host, uri.port)
 			request = Net::HTTP::Post.new(uri.request_uri)
-
 			docInfoOrg_search_results = https.request(request).body
 			docInfoOrg_search_results =  docInfoOrg_search_results.gsub(/null/, 'nil')
 			# turn to Hash
@@ -138,11 +132,9 @@ class Controller
 	end
 
 	def parse_docInfoOrg_Results_into_XMLDoc(docInfoOrg_search_results, doc_delta_doctor)
-
 		docInfoOrg_doctors_XML = docInfoOrg_search_results[:hits][:hits].each_with_object([]) do |docInfoOrg_doctor, array|
 			array << Nokogiri::XML(docInfoOrg_doctor[:_source][:message])
 		end
-
 		self.parse_docInfo_doctor_attributes(docInfoOrg_doctors_XML, doc_delta_doctor)
 	end
 
@@ -155,10 +147,10 @@ class Controller
 			full_name = doctor.css("FullName").text
 			gender = doctor.css("Gender").text
 			specialties = doctor.css("Certifications Certification BoardName").each_with_object([]) do |node, array|
-				array << node.text.delete("*")
+				array << node.text.delete("*").downcase
 			end
 			reported_states = doctor.css("Locations Location State").each_with_object([]) do |node, array|
-				array << node.text
+				array << node.text.downcase
 			end
 			medical_school = doctor.css("MedicalSchoolName").text
 			graduation_year = doctor.css("GraduationYear").text
@@ -170,26 +162,53 @@ class Controller
 					array <<  '<a href="' + url + '">' + node.text + '</a>'
 				end
 			end
-
 			docInfoOrg_doctor = DocInfoOrgDoctor.new({first_name: first_name, last_name: last_name, full_name: full_name, gender: gender, specialties: specialties, reported_states: reported_states, medical_school: medical_school, graduation_year: graduation_year, active_licenses_in_these_states: active_licenses_in_these_states, punitive_board_actions_in_these_states: punitive_board_actions_in_these_states})
-
 			self.compare_docInfoDoc_to_docDeltaDoc(doc_delta_doctor, docInfoOrg_doctor, )
 		end	
 
 	end
 
 	def compare_docInfoDoc_to_docDeltaDoc(doc_delta_doctor, docInfoOrg_doctor)
+
+		puts "Before Check"
+		puts doc_delta_doctor.first_name + " " + doc_delta_doctor.last_name
+		puts "Specialties"
+		puts doc_delta_doctor.specialties
+
 		first_name_check = doc_delta_doctor.first_name.downcase == docInfoOrg_doctor.first_name.downcase
-		last_name_check = doc_delta_doctor.last_name.downcase == docInfoOrg_doctor.first_name.downcase
+		last_name_check = doc_delta_doctor.last_name.downcase == docInfoOrg_doctor.last_name.downcase
+		gender_check = doc_delta_doctor.gender.downcase == docInfoOrg_doctor.gender.downcase
+		specialties_check = true
+			doc_delta_doctor.specialties.each do |specialty|
+				specialties_check = docInfoOrg_doctor.specialties.include?(specialty.downcase) 
+			end
+		state_check = docInfoOrg_doctor.reported_states.include?(doc_delta_doctor.state)   
 
+		if first_name_check && last_name_check && gender_check && specialties_check && state_check 
+			doc_delta_doctor.specialties = docInfoOrg_doctor.specialties
+			doc_delta_doctor.medical_school = docInfoOrg_doctor.medical_school
+			doc_delta_doctor.graduation_year = docInfoOrg_doctor.graduation_year
+			doc_delta_doctor.active_licenses_in_these_states = docInfoOrg_doctor.active_licenses_in_these_states
+			doc_delta_doctor.punitive_board_actions_in_these_states = docInfoOrg_doctor.punitive_board_actions_in_these_states
+		end 
 
+		puts "First name check: ", first_name_checkc
+
+		puts "---------"
+		puts "After Check"
+
+		puts doc_delta_doctor.first_name + " " + doc_delta_doctor.last_name
+		puts "Specialties"
+		puts doc_delta_doctor.specialties
+		puts doc_delta_doctor.medical_school
+		puts doc_delta_doctor.graduation_year
+		puts doc_delta_doctor.active_licenses_in_these_states
+		puts doc_delta_doctor.punitive_board_actions_in_these_states
 
 	end
 
 
 
 end
-
-
 controller = Controller.new
 
