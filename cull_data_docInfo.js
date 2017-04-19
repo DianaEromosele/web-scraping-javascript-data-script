@@ -148,7 +148,11 @@ function makeXMLHttpRequest(root, docDeltaDoctor, docDelta_data) {
 }
 
 function turnDocInfoResultsIntoObject(docInfoSearchResults, docDeltaDoctor, docDelta_data) {
+  console.log("Doc Info Results: ", typeof(docInfoSearchResults));
+
   let docInfoSearchResultsObject = JSON.parse(docInfoSearchResults);
+
+  console.log("After convert: ", typeof(docInfoSearchResultsObject))
   return parseEachDoctorinResults(docInfoSearchResultsObject, docDeltaDoctor, docDelta_data)
 }
 
@@ -193,7 +197,7 @@ function parseXMLDocData(doctorsDocInfoOrgResults, docDeltaDoctor, docDelta_data
     console.log($(state).text());
   });
 
-    console.log("Certifications: ", $docInfoOrgDoctorXML.find("Certifications Certification BoardName").text())
+    console.log("Certifications: ", $(docInfoOrgDoctorDocument).find("Certifications Certification BoardName").text())
   });
 
 
