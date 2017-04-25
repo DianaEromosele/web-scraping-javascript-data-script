@@ -6,7 +6,7 @@ The script makes informal requests to the 'www.docinfo.org' server, to find a do
 
 The script generates two output CSV files: 1) output_data_all_doctors.csv will list **all** of the doctors found in the intial CSV file, with any updated data from www.docInfo.org included; 2) output_data_updated_doctors_only.csv will list only those doctors from the initial CSV file whose data was updated and enhanced by data from www.docInfo.org
 
-The developers at the healthcare database hub can then take either of the two CSV files generated and funnel the data back into their databases. 
+The developers at the healthcare database hub can then take either of the two CSV files generated and funnel the data back into their database. 
 
 Instructions to Run the Script:
 
