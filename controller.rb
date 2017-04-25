@@ -8,10 +8,10 @@ require_relative 'models/doc_info_org_doctor'
 
 class Controller
 
-	attr_accessor :doc_delta_doctors
+	attr_accessor :input_doctors
 
 	def initialize
-		@doc_delta_doctors = doc_delta_doctors || []
+		@input_doctors ||= []
 		self.create_doc_delta_instances
 	end
 
@@ -93,14 +93,13 @@ class Controller
 
 		state = states[row[5]]
 		
-		input_doctors << DocDeltaDoctor.new({npi: npi, first_name: first_name, last_name: last_name, gender: gender, specialties: specialties, state: state})
+		@input_doctors << DocDeltaDoctor.new({npi: npi, first_name: first_name, last_name: last_name, gender: gender, specialties: specialties, state: state})
 		end
-
-		self.configure_route_to_docInfo_server(input_doctors)
+		self.configure_route_to_docInfo_server
 	end
 
-	def configure_route_to_docInfo_server(input_doctors)
-		input_doctors.each_with_index do |input_doctor, index|
+	def configure_route_to_docInfo_server
+		@input_doctors.each_with_index do |input_doctor, index|
 			route = 'http://www.docinfo.org/Home/Search?doctorname=' + input_doctor.first_name + '%20' + input_doctor.last_name
 			if input_doctor.state && input_doctor.state != nil.to_s
 				route = route + '&usstate='
@@ -116,14 +115,13 @@ class Controller
 			end 
 			input_doctor.set_route_to_docInfo_server(route) 
 		end
-
-		self.make_request_to_docInfoOrg_server(input_doctors)
+		self.make_request_to_docInfoOrg_server
 	end 
 
 
-	def make_request_to_docInfoOrg_server(input_doctors)
+	def make_request_to_docInfoOrg_server
 
-		input_doctors.each do |input_doctor|
+		@input_doctors.each do |input_doctor|
 			uri = URI(input_doctor.route_to_server)
 			https = Net::HTTP.new(uri.host, uri.port)
 			request = Net::HTTP::Post.new(uri.request_uri)
@@ -133,21 +131,21 @@ class Controller
 			input_doctor.set_docInfo_search_results(docInfoOrg_search_results)
 		end
 
-		self.parse_docInfoOrg_Results_into_XMLDoc(input_doctors)
+		self.parse_docInfoOrg_Results_into_XMLDoc
 	end
 
-	def parse_docInfoOrg_Results_into_XMLDoc(input_doctors)
-		input_doctors.each do |input_doctor|
+	def parse_docInfoOrg_Results_into_XMLDoc
+		@input_doctors.each do |input_doctor|
 			docInfoOrg_doctors_XML = input_doctor.docInfo_search_results[:hits][:hits].each_with_object([]) do |docInfoOrg_doctor, array|
 			array << Nokogiri::XML(docInfoOrg_doctor[:_source][:message])
 			end
 			input_doctor.parsedXML_docInfo_results(docInfoOrg_doctors_XML)
 		end
-		self.parse_docInfo_doctor_attributes(input_doctors)
+		self.parse_docInfo_doctor_attributes
 	end
 
-	def parse_docInfo_doctor_attributes(input_doctors)
-		input_doctors.each do |input_doctor|
+	def parse_docInfo_doctor_attributes
+		@input_doctors.each do |input_doctor|
 			docInfoOrg_doctor_instances = []
 			input_doctor.parsed_docInfo_results.each do |docInfo_doctor|
 				first_name = docInfo_doctor.css("FirstName").text.strip
@@ -170,10 +168,7 @@ class Controller
 					end
 				punitive_board_actions_in_these_states = 
 					docInfo_doctor.css("BoardActions BoardAction State").each_with_object([]) do |node, array|
-						# docInfo_doctor.css("BoardActions BoardAction StateURL").each do |url|
 						array << node
-							# array <<  '<a href="' + url + '">' + node.text.strip + '</a>'
-						# end
 					end
 				docInfoOrg_doctor_instances << DocInfoOrgDoctor.new({first_name: first_name, last_name: last_name, full_name: full_name, gender: gender, specialties: specialties, reported_states: reported_states, medical_school: medical_school, graduation_year: graduation_year, active_licenses_in_these_states: active_licenses_in_these_states, punitive_board_actions_in_these_states: punitive_board_actions_in_these_states})
 			end	
@@ -181,14 +176,14 @@ class Controller
 			input_doctor.set_docInfoOrg_doctor_instances(docInfoOrg_doctor_instances)
 
 		end
-		self.compare_docInfoDoc_to_docDeltaDoc(input_doctors)
+		self.compare_docInfoDoc_to_docDeltaDoc
 
 	end
 
-	def compare_docInfoDoc_to_docDeltaDoc(input_doctors)
+	def compare_docInfoDoc_to_docDeltaDoc
 
 		updated_input_doctors = []
-		input_doctors.each do |input_doctor|
+		@input_doctors.each do |input_doctor|
 			input_doctor.docInfoOrg_doctor_instances.each do |docInfoOrg_doctor|
 				first_name_check = input_doctor.first_name.downcase == docInfoOrg_doctor.first_name.downcase
 				last_name_check = input_doctor.last_name.downcase == docInfoOrg_doctor.last_name.downcase
@@ -206,22 +201,21 @@ class Controller
 					input_doctor.graduation_year = docInfoOrg_doctor.graduation_year
 					input_doctor.active_licenses_in_these_states = docInfoOrg_doctor.active_licenses_in_these_states
 					input_doctor.punitive_board_actions_in_these_states = docInfoOrg_doctor.punitive_board_actions_in_these_states
-
 					updated_input_doctors << input_doctor
 				end 
 			end
 		end
-		self.generate_output_CSV(input_doctors, updated_input_doctors)
+		self.generate_output_CSV
+		self.generate_CSV_with_updated_doctors_only(updated_input_doctors)
 	end
 
 	
-	def generate_output_CSV(input_doctors, updated_input_doctors)
+	def generate_output_CSV
 			CSV.open('output_data_all_doctors.csv', 'a+', write_headers: true, headers: ["NPI", "First Name", "Last Name", "Gender", "Specialties" , "State", "Full Name" ,"Medical School","Graduation Year", "Active Licenses", "Board Actions"]) do |row|
-				input_doctors.each do |input_doctor|
+				@input_doctors.each do |input_doctor|
 					row << [input_doctor.npi, input_doctor.first_name, input_doctor.last_name, input_doctor.gender, input_doctor.specialties.flatten.join(", "), input_doctor.state, input_doctor.full_name, input_doctor.medical_school, input_doctor.graduation_year, input_doctor.active_licenses_in_these_states.flatten.join(", "), input_doctor.punitive_board_actions_in_these_states.flatten.join(", ")]
 				end
 			end
-			self.generate_CSV_with_updated_doctors_only(updated_input_doctors)
 	end
 
 	def generate_CSV_with_updated_doctors_only(updated_input_doctors)

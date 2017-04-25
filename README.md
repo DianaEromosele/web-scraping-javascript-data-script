@@ -24,7 +24,9 @@ Keep in Mind:
 
 The input CSV file provided by DocDelta has each doctor's NPI, however the www.docinfo.org database does not. The script currently searches for doctors and confirms a match by comparing the following data: first name, last name, gender and specialties. The comparison is not default-proof. An NPI comparison would be ideal and nearly perfect. Modifying the script to make a comparison using a doctor's NPI is simple and easy to do.
 
-2) Pulling data from www.docinfo.org is not exactly within the terms of use of their site, as stated below in an excerpt pulled from the site's "Terms of Use":
+2) Making a request to the informal www.docinfo.org database will return a maximum of 10 records (possible matches) per doctor, despite there being dozens, if not hundereds of more matches in their database. One possible explanation for this is when you visit www.docinfo.org and make a request using their standard search engine, the first page returns 10 hits. This Ruby script is making informal requests to that search engine, and could not get around retrieving more than 10 records for each doctor...which leads to point #3: 
+
+3) Pulling data from the www.docinfo.org search engine using a back-end script is not exactly within the terms of use of their site, as stated below in an excerpt pulled from the site's "Terms of Use". Please keep that in mind:
 
 "You will not use any robot, spider, site search/retrieval application, or other manual or automatic device or process to retrieve, index, “data mine”, or in any way reproduce or circumvent the navigational structure or presentation of the Service or its contents."
 
