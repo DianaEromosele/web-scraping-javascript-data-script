@@ -7,16 +7,14 @@ require_relative 'models/doc_delta_doctor'
 require_relative 'models/doc_info_org_doctor'
 
 class Controller
-
 	attr_accessor :input_doctors
-
+	
 	def initialize
 		@input_doctors ||= []
 		self.create_doc_delta_instances
 	end
 
 	def create_doc_delta_instances
-
 		input_doctors = []
 		input_data_file = ARGV[0]
 	
@@ -120,7 +118,6 @@ class Controller
 
 
 	def make_request_to_docInfoOrg_server
-
 		@input_doctors.each do |input_doctor|
 			uri = URI(input_doctor.route_to_server)
 			https = Net::HTTP.new(uri.host, uri.port)
@@ -181,7 +178,6 @@ class Controller
 	end
 
 	def compare_docInfoDoc_to_docDeltaDoc
-
 		updated_input_doctors = []
 		@input_doctors.each do |input_doctor|
 			input_doctor.docInfoOrg_doctor_instances.each do |docInfoOrg_doctor|
