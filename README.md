@@ -1,4 +1,4 @@
-This is a Ruby script, commissioned by DocDelta and built by Diana Ozemebhoya Eromosele during the latter's Software Developer Residency at Newark Venture Partners, an early-stage venture fund.
+This is a Ruby script, commissioned by DocDelta -- a database company that helps heathcare providers find and retain top talent. 
 
 The script takes in an input CSV file provided by DocDelta that contains data about individual doctors in their database.
 
