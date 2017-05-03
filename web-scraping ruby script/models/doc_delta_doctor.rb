@@ -38,6 +38,23 @@ class DocDeltaDoctor
 	end
 
 
+	def configure_route_to_docInfo_server
+		route = 'http://www.docinfo.org/Home/Search?doctorname=' + self.first_name + '%20' + self.last_name
+			if self.state && self.state != nil.to_s
+				route = route + '&usstate='
+				self.state.split(" ").each_with_index do |word, slot|
+					if self.state.split(" ")[slot + 1]
+						route = route + word + '%20'
+					else 
+						route = route + word + '&from=0'
+					end
+				end
+			else
+				route = route + '&from=0'
+			end 
+			self.set_route_to_docInfo_server(route)
+	end
+
 end
 
 	

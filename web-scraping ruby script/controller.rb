@@ -97,25 +97,11 @@ class Controller
 	end
 
 	def configure_route_to_docInfo_server
-		@input_doctors.each_with_index do |input_doctor, index|
-			route = 'http://www.docinfo.org/Home/Search?doctorname=' + input_doctor.first_name + '%20' + input_doctor.last_name
-			if input_doctor.state && input_doctor.state != nil.to_s
-				route = route + '&usstate='
-				input_doctor.state.split(" ").each_with_index do |word, slot|
-					if input_doctor.state.split(" ")[slot + 1]
-						route = route + word + '%20'
-					else 
-						route = route + word + '&from=0'
-					end
-				end
-			else
-				route = route + '&from=0'
-			end 
-			input_doctor.set_route_to_docInfo_server(route) 
+		@input_doctors.each do |input_doctor|
+			input_doctor.configure_route_to_docInfo_server
 		end
 		self.make_request_to_docInfoOrg_server
 	end 
-
 
 	def make_request_to_docInfoOrg_server
 		@input_doctors.each do |input_doctor|
