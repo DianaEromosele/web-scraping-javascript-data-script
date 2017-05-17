@@ -1,7 +1,6 @@
 require 'uri'
 require 'net/http'
 require 'nokogiri'
-require 'pry'
 require 'csv'
 require_relative 'models/doc_delta_doctor'
 require_relative 'models/doc_info_org_doctor'
