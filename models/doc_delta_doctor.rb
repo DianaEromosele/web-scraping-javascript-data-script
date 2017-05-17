@@ -1,7 +1,7 @@
-class DocDeltaDoctor 
+class DocDeltaDoctor
 	attr_accessor :specialties, :medical_school, :graduation_year, :active_licenses_in_these_states, :punitive_board_actions_in_these_states, :full_name, :route_to_server, :docInfo_search_results, :parsed_docInfo_results, :docInfoOrg_doctor_instances
 	attr_reader :npi, :first_name, :last_name, :gender, :state
-	
+
 	def initialize(args)
 		@npi = args[:npi]
 		@first_name = args[:first_name]
@@ -18,8 +18,8 @@ class DocDeltaDoctor
 		@docInfo_search_results ||= []
 		@parsed_docInfo_results ||= []
 		@docInfoOrg_doctor_instances ||= []
-	
-	end 
+
+	end
 
 	def set_route_to_docInfo_server(route)
 		@route_to_server = route
@@ -37,7 +37,6 @@ class DocDeltaDoctor
 		@docInfoOrg_doctor_instances = instances
 	end
 
-
 	def configure_route_to_docInfo_server
 		route = 'http://www.docinfo.org/Home/Search?doctorname=' + self.first_name + '%20' + self.last_name
 			if self.state && self.state != nil.to_s
@@ -45,18 +44,13 @@ class DocDeltaDoctor
 				self.state.split(" ").each_with_index do |word, slot|
 					if self.state.split(" ")[slot + 1]
 						route = route + word + '%20'
-					else 
+					else
 						route = route + word + '&from=0'
 					end
 				end
 			else
 				route = route + '&from=0'
-			end 
+			end
 			self.set_route_to_docInfo_server(route)
 	end
-
 end
-
-	
-
-

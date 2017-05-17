@@ -8,7 +8,7 @@ require_relative 'models/doc_info_org_doctor'
 
 class Controller
 	attr_accessor :input_doctors
-	
+
 	def initialize
 		@input_doctors ||= []
 		self.create_doc_delta_instances
@@ -17,7 +17,7 @@ class Controller
 	def create_doc_delta_instances
 		input_doctors = []
 		input_data_file = ARGV[0]
-	
+
 		CSV.foreach(input_data_file, headers:true, header_converters: :symbol, encoding:'iso-8859-1:utf-8') do |row|
 
 			npi = row[0]
@@ -90,7 +90,6 @@ class Controller
 		}
 
 		state = states[row[5]]
-		
 		@input_doctors << DocDeltaDoctor.new({npi: npi, first_name: first_name, last_name: last_name, gender: gender, specialties: specialties, state: state})
 		end
 		self.configure_route_to_docInfo_server
@@ -101,7 +100,7 @@ class Controller
 			input_doctor.configure_route_to_docInfo_server
 		end
 		self.make_request_to_docInfoOrg_server
-	end 
+	end
 
 	def make_request_to_docInfoOrg_server
 		@input_doctors.each do |input_doctor|
@@ -135,32 +134,29 @@ class Controller
 				last_name = docInfo_doctor.css("LastName").text.strip
 				full_name = docInfo_doctor.css("FullName").text.strip
 				gender = docInfo_doctor.css("Gender").text.strip
-				specialties = 
+				specialties =
 					docInfo_doctor.css("Certifications Certification BoardName").each_with_object([]) do |node, array|
 						array << node.text.delete("*").strip.downcase
 					end
-				reported_states = 
+				reported_states =
 					docInfo_doctor.css("Locations Location State").each_with_object([]) do |node, array|
 						array << node.text.strip.downcase
 					end
 				medical_school = docInfo_doctor.css("MedicalSchoolName").text.strip
 				graduation_year = docInfo_doctor.css("GraduationYear").text.strip
-				active_licenses_in_these_states = 
+				active_licenses_in_these_states =
 					docInfo_doctor.css("Licensures Licensure State").each_with_object([]) do |node, array|
 						array << node.text.strip
 					end
-				punitive_board_actions_in_these_states = 
+				punitive_board_actions_in_these_states =
 					docInfo_doctor.css("BoardActions BoardAction State").each_with_object([]) do |node, array|
 						array << node
 					end
 				docInfoOrg_doctor_instances << DocInfoOrgDoctor.new({first_name: first_name, last_name: last_name, full_name: full_name, gender: gender, specialties: specialties, reported_states: reported_states, medical_school: medical_school, graduation_year: graduation_year, active_licenses_in_these_states: active_licenses_in_these_states, punitive_board_actions_in_these_states: punitive_board_actions_in_these_states})
-			end	
-
+			end
 			input_doctor.set_docInfoOrg_doctor_instances(docInfoOrg_doctor_instances)
-
 		end
 		self.compare_docInfoDoc_to_docDeltaDoc
-
 	end
 
 	def compare_docInfoDoc_to_docDeltaDoc
@@ -171,11 +167,11 @@ class Controller
 				gender_check = input_doctor.gender.downcase == docInfoOrg_doctor.gender.downcase
 				specialties_check = false
 				input_doctor.specialties.each do |specialty|
-					specialties_check = true if docInfoOrg_doctor.specialties.include?(specialty.downcase) 
+					specialties_check = true if docInfoOrg_doctor.specialties.include?(specialty.downcase)
 				end
-				state_check = docInfoOrg_doctor.reported_states.include?(input_doctor.state.downcase)  
-			
-				if first_name_check && last_name_check && gender_check && specialties_check && state_check 
+				state_check = docInfoOrg_doctor.reported_states.include?(input_doctor.state.downcase)
+
+				if first_name_check && last_name_check && gender_check && specialties_check && state_check
 					input_doctor.full_name = docInfoOrg_doctor.full_name
 					input_doctor.specialties = docInfoOrg_doctor.specialties
 					input_doctor.medical_school = docInfoOrg_doctor.medical_school
@@ -183,24 +179,23 @@ class Controller
 					input_doctor.active_licenses_in_these_states = docInfoOrg_doctor.active_licenses_in_these_states
 					input_doctor.punitive_board_actions_in_these_states = docInfoOrg_doctor.punitive_board_actions_in_these_states
 					array << input_doctor
-				end 
+				end
 			end
 		end
 		self.generate_output_CSV
 		self.generate_CSV_with_updated_doctors_only(updated_input_doctors)
 	end
 
-	
+
 	def generate_output_CSV
-			CSV.open('output_data_all_doctors.csv', 'a+', write_headers: true, headers: ["NPI", "First Name", "Last Name", "Gender", "Specialties" , "State", "Full Name" ,"Medical School","Graduation Year", "Active Licenses", "Board Actions"]) do |row|
-				@input_doctors.each do |input_doctor|
-					row << [input_doctor.npi, input_doctor.first_name, input_doctor.last_name, input_doctor.gender, input_doctor.specialties.flatten.join(", "), input_doctor.state, input_doctor.full_name, input_doctor.medical_school, input_doctor.graduation_year, input_doctor.active_licenses_in_these_states.flatten.join(", "), input_doctor.punitive_board_actions_in_these_states.flatten.join(", ")]
-				end
+		CSV.open('output_data_all_doctors.csv', 'a+', write_headers: true, headers: ["NPI", "First Name", "Last Name", "Gender", "Specialties" , "State", "Full Name" ,"Medical School","Graduation Year", "Active Licenses", "Board Actions"]) do |row|
+			@input_doctors.each do |input_doctor|
+				row << [input_doctor.npi, input_doctor.first_name, input_doctor.last_name, input_doctor.gender, input_doctor.specialties.flatten.join(", "), input_doctor.state, input_doctor.full_name, input_doctor.medical_school, input_doctor.graduation_year, input_doctor.active_licenses_in_these_states.flatten.join(", "), input_doctor.punitive_board_actions_in_these_states.flatten.join(", ")]
 			end
+		end
 	end
 
 	def generate_CSV_with_updated_doctors_only(updated_input_doctors)
-
 		CSV.open('output_data_updated_doctors_only.csv', 'a+', write_headers: true, headers: ["NPI", "First Name", "Last Name", "Gender", "Specialties" , "State", "Full Name" ,"Medical School","Graduation Year", "Active Licenses", "Board Actions"]) do |row|
 			updated_input_doctors.each do |updated_doctor|
 				row << [updated_doctor.npi, updated_doctor.first_name, updated_doctor.last_name, updated_doctor.gender, updated_doctor.specialties.flatten.join(", "), updated_doctor.state, updated_doctor.full_name, updated_doctor.medical_school, updated_doctor.graduation_year, updated_doctor.active_licenses_in_these_states.flatten.join(", "), updated_doctor.punitive_board_actions_in_these_states.flatten.join(", ")]
@@ -211,4 +206,3 @@ class Controller
 
 end
 controller = Controller.new
-
