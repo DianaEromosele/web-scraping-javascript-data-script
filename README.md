@@ -14,7 +14,7 @@ The developers at the healthcare database hub can then take either of the two CS
 
 **Instructions to Run the Script**:
 
-**1)** Depending on your version of Ruby, you may need to manually install the Nokogiri gem from your command line. (The gem is required in the controller file, but that may not suffice depending on your version of Ruby and thus may throw an error). To manually install the gem, in your terminal, type: **gem install nokogiri**
+**1)** Install the app's gems. In your terminal, run: **bundle install**
 
 **2)** A mock CSV file has been provided to run the script. In your command line, type: **ruby controller.rb input_data.csv**
 
